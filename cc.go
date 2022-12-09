@@ -79,6 +79,7 @@ func (group *routerGroup) Group(prefix string) *routerGroup {
 }
 
 func (group *routerGroup) addRoute(method, pattern string, handler HandlerFunc) {
+	pattern = group.prefix + pattern
 	group.engine.router.addRoute(method, pattern, handler)
 }
 
