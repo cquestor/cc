@@ -4,9 +4,19 @@ import (
 	"fmt"
 	"net/http"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 )
+
+type CorsConfig struct {
+	AllowOrigin      string
+	AllowMethods     string
+	AllowHeaders     string
+	ExposeHeaders    string
+	MaxAge           int
+	AllowCredentials bool
+}
 
 func Logger() HandlerFunc {
 	return func(c *Context) {
@@ -49,6 +59,40 @@ func Recovery() HandlerFunc {
 			}
 		}()
 		c.Next()
+	}
+}
+
+func Cors(config *CorsConfig) HandlerFunc {
+	if config == nil {
+		config = new(CorsConfig)
+		config.AllowOrigin = "*"
+		config.AllowHeaders = "*"
+		config.AllowMethods = "*"
+		config.MaxAge = 60 * 60 * 24
+		config.AllowCredentials = true
+	}
+	return func(c *Context) {
+		if config.AllowOrigin != "" {
+			c.SetHeader("Access-Control-Allow-Origin", config.AllowOrigin)
+		}
+		if config.AllowMethods != "" {
+			c.SetHeader("Access-Control-Allow-Methods", config.AllowMethods)
+		}
+		if config.AllowHeaders != "" {
+			c.SetHeader("Access-Control-Allow-Headers", config.AllowHeaders)
+		}
+		if config.ExposeHeaders != "" {
+			c.SetHeader("Access-Control-Expose-Headers", config.ExposeHeaders)
+		}
+		if config.MaxAge > 0 {
+			c.SetHeader("Access-Control-Max-Age", strconv.Itoa(config.MaxAge))
+		}
+		if config.AllowCredentials {
+			c.SetHeader("Access-Control-Allow-Credentials", "true")
+		}
+		if c.Method == http.MethodOptions {
+			c.AbortWithStatus(http.StatusOK)
+		}
 	}
 }
 

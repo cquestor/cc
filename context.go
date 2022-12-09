@@ -1,10 +1,12 @@
 package cc
 
 import (
+	"bytes"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"strings"
@@ -47,6 +49,20 @@ func (c *Context) Query(key string) string {
 
 func (c *Context) PostForm(key string) string {
 	return c.Req.PostFormValue(key)
+}
+
+func (c *Context) Body() []byte {
+	var body []byte
+	if c.Req.Body != nil {
+		body, _ = io.ReadAll(c.Req.Body)
+		c.Req.Body = io.NopCloser(bytes.NewBuffer(body))
+		return body
+	}
+	return nil
+}
+
+func (c *Context) Header(key string) string {
+	return c.Req.Header.Get(key)
 }
 
 func (c *Context) SetStatus(code int) {
@@ -107,6 +123,10 @@ func (c *Context) AbortWithData(code int, value []byte) {
 	c.Writer.Write(value)
 }
 
+func (c *Context) Bind(target any) error {
+	return json.Unmarshal(c.Body(), target)
+}
+
 func (c *Context) Next() {
 	s := len(c.handlers)
 	for c.index++; c.index < s; c.index++ {
@@ -122,11 +142,11 @@ func (c *Context) NewSession() *session {
 }
 
 func (c *Context) GetIP() (string, error) {
-	ip := c.Req.Header.Get("X-Real-IP")
+	ip := c.Header("X-Real-IP")
 	if net.ParseIP(ip) != nil {
 		return ip, nil
 	}
-	ip = c.Req.Header.Get("X-Forward-For")
+	ip = c.Header("X-Forward-For")
 	for _, i := range strings.Split(ip, ",") {
 		if net.ParseIP(i) != nil {
 			return i, nil
