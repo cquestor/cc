@@ -1,0 +1,10 @@
+app:
+  name: TESTDEMO
+
+server:
+  port: 8888
+
+database:
+  driver-name: mysql
+  url: 
+  logger: true
