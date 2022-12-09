@@ -17,6 +17,12 @@ func TestMain(m *testing.M) {
 
 	c.Use(cc.Cors(nil))
 
+	userGroup := c.Group("/user")
+
+	userGroup.GET("/:name", func(c *cc.Context) {
+		c.String(200, "nihao")
+	})
+
 	c.GET("/", func(c *cc.Context) {
 		c.HTML(200, "<h1>Hello CC!</h1>")
 	})

@@ -70,7 +70,7 @@ func (group *routerGroup) Use(middlewares ...HandlerFunc) {
 func (group *routerGroup) Group(prefix string) *routerGroup {
 	parentEngine := group.engine
 	newGroup := &routerGroup{
-		prefix: prefix,
+		prefix: group.prefix + prefix,
 		parent: group,
 		engine: parentEngine,
 	}
@@ -84,11 +84,11 @@ func (group *routerGroup) addRoute(method, pattern string, handler HandlerFunc) 
 }
 
 func (group *routerGroup) GET(pattern string, handler HandlerFunc) {
-	group.engine.addRoute("GET", pattern, handler)
+	group.addRoute("GET", pattern, handler)
 }
 
 func (group *routerGroup) POST(pattern string, handler HandlerFunc) {
-	group.engine.addRoute("POST", pattern, handler)
+	group.addRoute("POST", pattern, handler)
 }
 
 func (engine *engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
