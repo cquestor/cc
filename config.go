@@ -27,7 +27,7 @@ func (config *appConfig) Default() {
 
 func (config *appConfig) IsExist(filePath string) (bool, error) {
 	_, err := os.Stat(filePath)
-	if err == os.ErrNotExist {
+	if os.IsNotExist(err) {
 		return false, nil
 	}
 	if err != nil {

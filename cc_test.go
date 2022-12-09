@@ -8,12 +8,12 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	// c := cc.Default()
+	c := cc.Default()
 
-	// c.GET("/", func(c *cc.Context) {
-	// })
+	c.GET("/", func(c *cc.Context) {
+	})
 
-	// c.Run()
+	c.Run()
 	type user struct {
 		Name string
 	}
