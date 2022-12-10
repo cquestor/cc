@@ -134,7 +134,7 @@ func (c *Context) Next() {
 	}
 }
 
-func (c *Context) NewSession() *session {
+func (c *Context) Session() *Session {
 	if c.db == nil {
 		panic("database connection not found")
 	}

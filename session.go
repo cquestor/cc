@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-type session struct {
+type Session struct {
 	db       *sql.DB
 	dialect  dialect
 	refTable *schema
@@ -17,28 +17,28 @@ type session struct {
 	sqlVars  []any
 }
 
-func newSession(db *sql.DB, dialect dialect) *session {
-	return &session{db: db, dialect: dialect}
+func newSession(db *sql.DB, dialect dialect) *Session {
+	return &Session{db: db, dialect: dialect}
 }
 
-func (s *session) Clear() {
+func (s *Session) Clear() {
 	s.sql.Reset()
 	s.sqlVars = nil
 	s.clause = clause{}
 }
 
-func (s *session) DB() *sql.DB {
+func (s *Session) DB() *sql.DB {
 	return s.db
 }
 
-func (s *session) Raw(sql string, values ...any) *session {
+func (s *Session) Raw(sql string, values ...any) *Session {
 	s.sql.WriteString(sql)
 	s.sql.WriteString(" ")
 	s.sqlVars = append(s.sqlVars, values...)
 	return s
 }
 
-func (s *session) Exec() (result sql.Result, err error) {
+func (s *Session) Exec() (result sql.Result, err error) {
 	defer s.Clear()
 	dbLog(s.sql.String(), s.sqlVars)
 	if result, err = s.DB().Exec(s.sql.String(), s.sqlVars...); err != nil {
@@ -47,13 +47,13 @@ func (s *session) Exec() (result sql.Result, err error) {
 	return
 }
 
-func (s *session) QueryRow() *sql.Row {
+func (s *Session) QueryRow() *sql.Row {
 	defer s.Clear()
 	dbLog(s.sql.String(), s.sqlVars)
 	return s.DB().QueryRow(s.sql.String(), s.sqlVars...)
 }
 
-func (s *session) QueryRows() (rows *sql.Rows, err error) {
+func (s *Session) QueryRows() (rows *sql.Rows, err error) {
 	defer s.Clear()
 	dbLog(s.sql.String(), s.sqlVars)
 	if rows, err = s.DB().Query(s.sql.String(), s.sqlVars...); err != nil {
@@ -62,21 +62,21 @@ func (s *session) QueryRows() (rows *sql.Rows, err error) {
 	return
 }
 
-func (s *session) Model(value any) *session {
+func (s *Session) Model(value any) *Session {
 	if s.refTable == nil || reflect.TypeOf(value) != reflect.TypeOf(s.refTable.Model) {
 		s.refTable = parseTable(value, s.dialect)
 	}
 	return s
 }
 
-func (s *session) RefTable() *schema {
+func (s *Session) RefTable() *schema {
 	if s.refTable == nil {
 		Error("Model is not set")
 	}
 	return s.refTable
 }
 
-func (s *session) CreateTable() error {
+func (s *Session) CreateTable() error {
 	table := s.RefTable()
 	var columns []string
 	for _, field := range table.Fields {
@@ -87,12 +87,12 @@ func (s *session) CreateTable() error {
 	return err
 }
 
-func (s *session) DropTable() error {
+func (s *Session) DropTable() error {
 	_, err := s.Raw(fmt.Sprintf("DROP TABLE IF EXISTS %s", s.refTable.Name)).Exec()
 	return err
 }
 
-func (s *session) HasTable() bool {
+func (s *Session) HasTable() bool {
 	sql, values := s.dialect.TableExistSQL(s.RefTable().Name)
 	row := s.Raw(sql, values...).QueryRow()
 	var tmp string
@@ -100,7 +100,7 @@ func (s *session) HasTable() bool {
 	return tmp == s.refTable.Name
 }
 
-func (s *session) Insert(values ...any) (int64, error) {
+func (s *Session) Insert(values ...any) (int64, error) {
 	recordValues := make([]any, 0)
 	for _, value := range values {
 		table := s.Model(value).RefTable()
@@ -116,7 +116,7 @@ func (s *session) Insert(values ...any) (int64, error) {
 	return result.RowsAffected()
 }
 
-func (s *session) Find(values any) error {
+func (s *Session) Find(values any) error {
 	destSlice := reflect.Indirect(reflect.ValueOf(values))
 	destType := destSlice.Type().Elem()
 	table := s.Model(reflect.New(destType).Elem().Interface()).RefTable()
@@ -140,7 +140,7 @@ func (s *session) Find(values any) error {
 	return rows.Close()
 }
 
-func (s *session) First(value any) error {
+func (s *Session) First(value any) error {
 	dest := reflect.Indirect(reflect.ValueOf(value))
 	destSlice := reflect.New(reflect.SliceOf(dest.Type())).Elem()
 	if err := s.Limit(1).Find(destSlice.Addr().Interface()); err != nil {
@@ -153,7 +153,7 @@ func (s *session) First(value any) error {
 	return nil
 }
 
-func (s *session) Update(kv ...any) (int64, error) {
+func (s *Session) Update(kv ...any) (int64, error) {
 	m, ok := kv[0].(map[string]any)
 	if !ok {
 		m = make(map[string]any)
@@ -170,7 +170,7 @@ func (s *session) Update(kv ...any) (int64, error) {
 	return result.RowsAffected()
 }
 
-func (s *session) Delete() (int64, error) {
+func (s *Session) Delete() (int64, error) {
 	s.clause.Set(DELETE, s.RefTable().Name)
 	sql, vars := s.clause.Build(DELETE, WHERE)
 	result, err := s.Raw(sql, vars...).Exec()
@@ -180,7 +180,7 @@ func (s *session) Delete() (int64, error) {
 	return result.RowsAffected()
 }
 
-func (s *session) Count() (int64, error) {
+func (s *Session) Count() (int64, error) {
 	s.clause.Set(COUNT, s.RefTable().Name)
 	sql, vars := s.clause.Build(COUNT, WHERE)
 	row := s.Raw(sql, vars...).QueryRow()
@@ -191,18 +191,18 @@ func (s *session) Count() (int64, error) {
 	return tmp, nil
 }
 
-func (s *session) Limit(num int) *session {
+func (s *Session) Limit(num int) *Session {
 	s.clause.Set(LIMIT, num)
 	return s
 }
 
-func (s *session) Where(desc string, args ...any) *session {
+func (s *Session) Where(desc string, args ...any) *Session {
 	var vars []any
 	s.clause.Set(WHERE, append(append(vars, desc), args...)...)
 	return s
 }
 
-func (s *session) OrderBy(desc string) *session {
+func (s *Session) OrderBy(desc string) *Session {
 	s.clause.Set(ORDERBY, desc)
 	return s
 }
