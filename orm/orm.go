@@ -101,6 +101,28 @@ func (engine *Engine) Close() {
 	engine.DB.Close()
 }
 
+// GetTx 获取事务
+func (session *Session) GetTx() (*CTx, error) {
+	tx, err := session.db.Begin()
+	if err != nil {
+		return nil, err
+	}
+	return &CTx{
+		tx:  tx,
+		sql: &strings.Builder{},
+		storeInsert: &StoreInsert{
+			fields:     make([]string, 0),
+			values:     make([][]any, 0),
+			prepareStr: &strings.Builder{},
+			execs:      make([]any, 0),
+		},
+		storeWhere: make([]*StoreWhere, 0),
+		storeSet:   make([]*StoreSet, 0),
+		storeLimit: &StoreLimit{},
+		storeOrder: make([]*StoreOrder, 0),
+	}, nil
+}
+
 // Table 设置表格名
 func (session *Session) Table(name string) *Session {
 	session.table = name

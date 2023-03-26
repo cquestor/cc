@@ -28,6 +28,24 @@ func TestData(t *testing.T) {
 			t.Fatal(err)
 		}
 	})
+	t.Run("tx", func(t *testing.T) {
+		tx, err := session.GetTx()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := tx.Table("account").Equal("name", "admin").Set("name", "张三").Update(); err != nil {
+			tx.Rollback()
+			t.Fatal(err)
+		}
+		if err := tx.Table("account").Equal("name", "chen").Set("name", "李四").Update(); err != nil {
+			tx.Rollback()
+			t.Fatal(err)
+		}
+		if err := tx.Commit(); err != nil {
+			tx.Rollback()
+			t.Fatal(err)
+		}
+	})
 	t.Run("select", func(t *testing.T) {
 		var account []Account
 		if n, err := session.Table("account").Equal("age", 23).Order("id", true).Select(&account); err != nil {
