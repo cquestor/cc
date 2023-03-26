@@ -21,8 +21,17 @@ func fileExists(filename string) bool {
 }
 
 // setColor 设置输出颜色
-func setColor(color TypeColor, v string) string {
-	prefix := fmt.Sprintf("\033[%dm", color)
+func setStyle(color TypeColor, style TypeStyle, v string) string {
+	prefix := fmt.Sprintf("\033[%d;%dm", style, color)
 	suffix := "\033[0m"
 	return prefix + v + suffix
+}
+
+// getSpinner 获取spinner
+func getSpinner() func() string {
+	index := 0
+	return func() string {
+		index = (index + 1) % len(spinners)
+		return spinners[index]
+	}
 }

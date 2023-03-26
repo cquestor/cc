@@ -20,11 +20,15 @@ type CLogger struct {
 	FileOut    io.Writer
 	Prefix     string
 	Color      TypeColor
+	Style      TypeStyle
 	lock       *sync.Mutex
 }
 
-// TypeColor 颜色
+// TypeColor 字体颜色
 type TypeColor int
+
+// TypeStyle 字体样式
+type TypeStyle int
 
 const (
 	ColorRed TypeColor = iota + 31
@@ -37,20 +41,36 @@ const (
 	ColorBlack
 )
 
+const (
+	StyleNormal    TypeStyle = 0
+	StyleBold      TypeStyle = 1
+	StyleItalic    TypeStyle = 3
+	StyleUnderline TypeStyle = 4
+	StyleInverse   TypeStyle = 7
+)
+
+var spinners = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+
+var spinner = getSpinner()
+
 // NewLogger 构造日志记录器
-func NewLogger(console io.Writer, file io.Writer, prefix string, color TypeColor) *CLogger {
+func NewLogger(console io.Writer, file io.Writer, prefix string, color TypeColor, style ...TypeStyle) *CLogger {
+	if len(style) < 1 {
+		style = append(style, StyleNormal)
+	}
 	return &CLogger{
 		ConsoleOut: console,
 		FileOut:    file,
 		Prefix:     prefix,
 		Color:      color,
+		Style:      style[0],
 		lock:       &sync.Mutex{},
 	}
 }
 
 // Style 设置颜色字体
-func Style(color TypeColor, v ...any) string {
-	return setColor(color, fmt.Sprint(v...))
+func Style(color TypeColor, style TypeStyle, v ...any) string {
+	return setStyle(color, style, fmt.Sprint(v...))
 }
 
 // SetConsoleOut 设置控制台输出
@@ -99,6 +119,13 @@ func (logger *CLogger) Printf(format string, v ...any) {
 	defer logger.lock.Unlock()
 	result := fmt.Sprintf(format, v...)
 	logger.Write([]byte(logger.appendOut(result)))
+}
+
+// Spin 加载动画
+func (logger *CLogger) Spin(color TypeColor, style TypeStyle, message string) {
+	logger.lock.Lock()
+	defer logger.lock.Unlock()
+	logger.Write([]byte(fmt.Sprintf("\r\033[%d;%dm%s %s\033[0m", style, color, spinner(), message)))
 }
 
 // appendOut 添加输出信息
