@@ -9,9 +9,9 @@ import (
 )
 
 type Account struct {
-	Id   int    `cc:"id,auto_increment"`
-	Name string `cc:"name"`
-	Age  int    `cc:"age"`
+	Id   int    `data:"id,auto_increment"`
+	Name string `data:"name"`
+	Age  int    `data:"age"`
 }
 
 func TestData(t *testing.T) {

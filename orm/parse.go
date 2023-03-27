@@ -6,6 +6,8 @@ import (
 	"strings"
 )
 
+const myTag = "data"
+
 // parseInsertObject 解析插入对象
 func parseInsertObject(v any) ([]string, []any, reflect.Type) {
 	var fields []string
@@ -17,7 +19,7 @@ func parseInsertObject(v any) ([]string, []any, reflect.Type) {
 		if !field.IsExported() {
 			continue
 		}
-		if interested, tag := isInsertInterested(field.Tag.Get("cc")); !interested {
+		if interested, tag := isInsertInterested(field.Tag.Get(myTag)); !interested {
 			continue
 		} else if tag != "" {
 			fields = append(fields, tag)
@@ -38,7 +40,7 @@ func parseSelectObject(t reflect.Type) []string {
 		if !field.IsExported() {
 			continue
 		}
-		if interested, tag := isSelectInterested(field.Tag.Get("cc")); !interested {
+		if interested, tag := isSelectInterested(field.Tag.Get(myTag)); !interested {
 			continue
 		} else if tag != "" {
 			fields = append(fields, tag)
@@ -88,7 +90,7 @@ func scanFetchObject(t reflect.Type, rows *sql.Rows) (reflect.Value, error) {
 		if !field.CanInterface() {
 			continue
 		}
-		if interested, _ := isSelectInterested(t.Field(i).Tag.Get("cc")); !interested {
+		if interested, _ := isSelectInterested(t.Field(i).Tag.Get(myTag)); !interested {
 			continue
 		}
 		addrs = append(addrs, field.Addr().Interface())
@@ -108,7 +110,7 @@ func scanOneObject(v any, rows *sql.Rows) error {
 		if !field.CanInterface() {
 			continue
 		}
-		if interested, _ := isSelectInterested(_value.Elem().Type().Field(i).Tag.Get("cc")); !interested {
+		if interested, _ := isSelectInterested(_value.Elem().Type().Field(i).Tag.Get(myTag)); !interested {
 			continue
 		}
 		addrs = append(addrs, field.Addr().Interface())
