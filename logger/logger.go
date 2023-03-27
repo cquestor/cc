@@ -7,6 +7,25 @@ import (
 	"time"
 )
 
+const (
+	ColorRed TypeColor = iota + 31
+	ColorGreen
+	ColorYellow
+	ColorBlue
+	ColorMagenta
+	ColorCyan
+	ColorWhite
+	ColorBlack
+)
+
+const (
+	StyleNormal    TypeStyle = 0
+	StyleBold      TypeStyle = 1
+	StyleItalic    TypeStyle = 3
+	StyleUnderline TypeStyle = 4
+	StyleInverse   TypeStyle = 7
+)
+
 // ILogger 日志记录器接口
 type ILogger interface {
 	Print(v ...any)
@@ -29,25 +48,6 @@ type TypeColor int
 
 // TypeStyle 字体样式
 type TypeStyle int
-
-const (
-	ColorRed TypeColor = iota + 31
-	ColorGreen
-	ColorYellow
-	ColorBlue
-	ColorMagenta
-	ColorCyan
-	ColorWhite
-	ColorBlack
-)
-
-const (
-	StyleNormal    TypeStyle = 0
-	StyleBold      TypeStyle = 1
-	StyleItalic    TypeStyle = 3
-	StyleUnderline TypeStyle = 4
-	StyleInverse   TypeStyle = 7
-)
 
 var spinners = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
 
@@ -101,24 +101,24 @@ func (logger *CLogger) Write(v []byte) {
 func (logger *CLogger) Print(v ...any) {
 	logger.lock.Lock()
 	defer logger.lock.Unlock()
-	result := fmt.Sprint(v...)
-	logger.Write([]byte(logger.appendOut(result)))
+	result := logger.appendOut(fmt.Sprint(v...))
+	logger.Write([]byte(setStyle(logger.Color, logger.Style, result)))
 }
 
 // Println 行输出
 func (logger *CLogger) Println(v ...any) {
 	logger.lock.Lock()
 	defer logger.lock.Unlock()
-	result := fmt.Sprintln(v...)
-	logger.Write([]byte(logger.appendOut(result)))
+	result := logger.appendOut(fmt.Sprintln(v...))
+	logger.Write([]byte(setStyle(logger.Color, logger.Style, result)))
 }
 
 // Printf 格式化输出
 func (logger *CLogger) Printf(format string, v ...any) {
 	logger.lock.Lock()
 	defer logger.lock.Unlock()
-	result := fmt.Sprintf(format, v...)
-	logger.Write([]byte(logger.appendOut(result)))
+	result := logger.appendOut(fmt.Sprintf(format, v...))
+	logger.Write([]byte(setStyle(logger.Color, logger.Style, result)))
 }
 
 // Spin 加载动画
@@ -130,7 +130,7 @@ func (logger *CLogger) Spin(color TypeColor, style TypeStyle, message string) {
 
 // appendOut 添加输出信息
 func (logger *CLogger) appendOut(v string) string {
-	return logger.setColor(logger.setPrefix(logger.setTime(v)))
+	return logger.setPrefix(logger.setTime(v))
 }
 
 // setPrefix 设置前缀
@@ -141,9 +141,4 @@ func (logger *CLogger) setPrefix(v string) string {
 // setTime 设置时间
 func (logger *CLogger) setTime(v string) string {
 	return time.Now().Format("2006-01-02 15:04:05") + " " + v
-}
-
-// setColor 设置颜色
-func (logger *CLogger) setColor(v string) string {
-	return fmt.Sprintf("\033[%dm%s\033[0m", logger.Color, v)
 }

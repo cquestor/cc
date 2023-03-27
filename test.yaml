@@ -1,0 +1,5 @@
+port: 9999
+database:
+  source: root:software@tcp(localhost:3306)/test
+  max-open-conns: 10
+  max-idle-conns: 5

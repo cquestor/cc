@@ -9,7 +9,7 @@ import (
 )
 
 func TestLogger(t *testing.T) {
-	testLog := logger.NewLogger(os.Stdout, nil, "[TEST]", logger.ColorBlue)
+	testLog := logger.NewLogger(os.Stdout, nil, "[TEST]", logger.ColorBlue, logger.StyleBold)
 	t.Run("print", func(t *testing.T) {
 		testLog.Print("print", logger.Style(logger.ColorRed, logger.StyleBold, " ???\n"))
 	})

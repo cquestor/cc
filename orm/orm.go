@@ -58,14 +58,14 @@ type StoreOrder struct {
 }
 
 // NewEngine 构造ORM引擎
-func NewEngine(source string) *Engine {
+func NewEngine(source string) (*Engine, error) {
 	db, err := connect(source)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	return &Engine{
 		DB: db,
-	}
+	}, nil
 }
 
 // NewSession 构造数据库会话
@@ -102,7 +102,7 @@ func (engine *Engine) Close() {
 }
 
 // GetTx 获取事务
-func (session *Session) GetTx() (*CTx, error) {
+func (session *Session) Begin() (*CTx, error) {
 	tx, err := session.db.Begin()
 	if err != nil {
 		return nil, err

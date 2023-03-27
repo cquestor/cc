@@ -7,60 +7,152 @@ package cc
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"time"
+
+	"github.com/cquestor/cc/orm"
 )
+
+// J json结构
+type J map[string]any
 
 // Engine Web引擎
 type Engine struct {
-	router map[string]func()
+	config   *AppConfig
+	router   map[string]func()
+	options  map[string]any
+	database *orm.Engine
 }
+
+type (
+	CAppConfig   []byte // 项目配置
+	CTLSCertFile string // TLS证书
+	CTLSKeyFile  string // TLS密钥
+)
+
+const (
+	optAppConfig = "AppConfig"
+	optCertPath  = "CertPath"
+	optKeyPath   = "KeyPath"
+)
 
 // New 构造Engine
 func New() *Engine {
 	return &Engine{
-		router: make(map[string]func()),
+		config:  NewAppConfig(),
+		router:  make(map[string]func()),
+		options: make(map[string]any),
 	}
 }
 
 // Run 启动 Web Server
-func (engine *Engine) Run(port int) {
-	listenAddr := fmt.Sprintf(":%d", port)
+func (engine *Engine) Run(options ...any) {
+	engine.parseOptions(options...)
+	if err := engine.parseConfig(); err != nil {
+		LogErrf("Parse config err: %v\n", err)
+		os.Exit(1)
+	}
+	if err := engine.initConfig(); err != nil {
+		LogErrf("Init config err: %v\n", err)
+		os.Exit(1)
+	}
+	listenAddr := fmt.Sprintf(":%d", engine.config.Port)
 	server := &http.Server{
-		Addr:    listenAddr,
-		Handler: engine,
-		// TODO 自定义错误日志
-		ErrorLog:     log.Default(),
-		ReadTimeout:  5 * time.Second,
-		WriteTimeout: 10 * time.Second,
-		IdleTimeout:  15 * time.Second,
+		Addr:         listenAddr,
+		Handler:      engine,
+		ReadTimeout:  time.Duration(engine.config.ReadTimeout) * time.Second,
+		WriteTimeout: time.Duration(engine.config.WriteTimeout) * time.Second,
+		IdleTimeout:  time.Duration(engine.config.IdleTimeout) * time.Second,
 	}
 	done := make(chan struct{}, 1)
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt)
 	go engine.shutdown(server, quit, done)
-	log.Println("Server is ready to handle requests at", listenAddr)
-	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		log.Fatalf("Could not listen on %s: %v \n", listenAddr, err)
-	}
+	LogInfo("Server is ready to handle requests at", listenAddr)
+	engine.start(server)
 	<-done
-	log.Println("Server stopped")
+	LogInfo("Server stopped")
+}
+
+// start 启动服务 http/https
+func (engine *Engine) start(server *http.Server) {
+	if engine.options[optCertPath] != nil && engine.options[optKeyPath] != nil {
+		certPath := engine.options[optCertPath].(CTLSCertFile)
+		keyPath := engine.options[optKeyPath].(CTLSKeyFile)
+		if err := server.ListenAndServeTLS(string(certPath), string(keyPath)); err != nil && err != http.ErrServerClosed {
+			LogErrf("Could not listen https on %s: %v \n", server.Addr, err)
+			os.Exit(1)
+		}
+	} else {
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			LogErrf("Could not listen http on %s: %v \n", server.Addr, err)
+			os.Exit(1)
+		}
+	}
+}
+
+// ParseConfig 读取配置文件
+func (engine *Engine) parseConfig() (err error) {
+	if content, ok := engine.options[optAppConfig]; ok {
+		LogInfo("Loading config from content by provided")
+		err = engine.config.ParseContent(content.(CAppConfig))
+	} else {
+		LogInfof("Loading config from %s\n", DEFAULT_CONFIG_PATH)
+		err = engine.config.ParseFile(DEFAULT_CONFIG_PATH)
+		if err != nil && os.IsNotExist(err) {
+			LogWarn("Local config file not found, using default config")
+			return nil
+		}
+	}
+	return err
+}
+
+// ParseOptions 解析运行参数
+func (engine *Engine) parseOptions(options ...any) {
+	for _, option := range options {
+		switch option := option.(type) {
+		case CAppConfig:
+			engine.options[optAppConfig] = option
+		case CTLSCertFile:
+			engine.options[optCertPath] = option
+		case CTLSKeyFile:
+			engine.options[optKeyPath] = option
+		}
+	}
+}
+
+// setConfig 依据配置进行初始化
+func (engine *Engine) initConfig() error {
+	if engine.config.Database.Source != "" {
+		LogInfo("Database source found, connecting to database")
+		if dataEngine, err := orm.NewEngine(engine.config.Database.Source); err != nil {
+			return err
+		} else {
+			engine.database = dataEngine
+		}
+	} else {
+		LogWarn("Database source not found, you may not be able to use relevant modules")
+	}
+	return nil
 }
 
 // shutdown 服务关闭处理
 func (engine *Engine) shutdown(server *http.Server, quit <-chan os.Signal, done chan<- struct{}) {
 	<-quit
-	log.Println("Server is shutting down...")
+	LogWarn("Server is shutting down...")
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	server.SetKeepAlivesEnabled(false)
 	if err := server.Shutdown(ctx); err != nil {
-		log.Fatalf("Cound not gracefully shutdown the server: %v \n", err)
+		LogErrf("Cound not gracefully shutdown the server: %v \n", err)
+		os.Exit(1)
 	}
-	// TODO do something, such as close database connection...
+	if engine.database != nil {
+		engine.database.Close()
+		LogInfo("Database closed success")
+	}
 	close(done)
 }
 

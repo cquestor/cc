@@ -15,7 +15,7 @@ type Account struct {
 }
 
 func TestData(t *testing.T) {
-	data := orm.NewEngine("root:software@tcp(localhost:3306)/test")
+	data, _ := orm.NewEngine("root:software@tcp(localhost:3306)/test")
 	defer data.Close()
 	session := data.NewSession()
 	t.Run("insert", func(t *testing.T) {
@@ -29,7 +29,7 @@ func TestData(t *testing.T) {
 		}
 	})
 	t.Run("tx", func(t *testing.T) {
-		tx, err := session.GetTx()
+		tx, err := session.Begin()
 		if err != nil {
 			t.Fatal(err)
 		}
