@@ -10,7 +10,7 @@ import (
 // CTx 事务
 type CTx struct {
 	tx          *sql.Tx
-	table       string
+	table       []string
 	sql         *strings.Builder
 	storeInsert *StoreInsert
 	storeWhere  []*StoreWhere
@@ -21,7 +21,7 @@ type CTx struct {
 
 // Table 设置表格名
 func (tx *CTx) Table(name string) *CTx {
-	tx.table = name
+	tx.table = append(tx.table, name)
 	return tx
 }
 
@@ -69,10 +69,10 @@ func (tx *CTx) Order(name string, desc ...bool) *CTx {
 // Update 修改数据
 func (tx *CTx) Update() error {
 	defer tx.Reset()
-	if tx.table == "" {
+	if len(tx.table) < 1 {
 		return fmt.Errorf("table name is empty, forgot set it?")
 	}
-	tx.sql.WriteString(fmt.Sprintf("UPDATE %s", tx.table))
+	tx.sql.WriteString(fmt.Sprintf("UPDATE %s", tx.table[0]))
 	execs := make([]any, 0)
 	addSets(tx.sql, tx.storeSet, &execs)
 	addWheres(tx.sql, tx.storeWhere, &execs)
@@ -82,10 +82,10 @@ func (tx *CTx) Update() error {
 // Delete 删除数据
 func (tx *CTx) Delete() error {
 	defer tx.Reset()
-	if tx.table == "" {
+	if len(tx.table) < 1 {
 		return fmt.Errorf("table name is empty, forgot set it?")
 	}
-	tx.sql.WriteString(fmt.Sprintf("DELETE FROM %s", tx.table))
+	tx.sql.WriteString(fmt.Sprintf("DELETE FROM %s", tx.table[0]))
 	execs := make([]any, 0)
 	addWheres(tx.sql, tx.storeWhere, &execs)
 	return tx._exec(execs...)
@@ -94,7 +94,7 @@ func (tx *CTx) Delete() error {
 // Insert 插入数据
 func (tx *CTx) Insert(v ...any) error {
 	defer tx.Reset()
-	if tx.table == "" {
+	if len(tx.table) < 1 {
 		return fmt.Errorf("table name is empty, forgot set it?")
 	}
 	for _, each := range v {
@@ -107,7 +107,7 @@ func (tx *CTx) Insert(v ...any) error {
 			return err
 		}
 	}
-	tx.sql.WriteString(fmt.Sprintf("INSERT INTO %s (%s) VALUES %s", tx.table, strings.Join(tx.storeInsert.fields, ", "), tx.storeInsert.prepareStr.String()))
+	tx.sql.WriteString(fmt.Sprintf("INSERT INTO %s (%s) VALUES %s", tx.table[0], strings.Join(tx.storeInsert.fields, ", "), tx.storeInsert.prepareStr.String()))
 	return tx._exec(tx.storeInsert.execs...)
 }
 
@@ -132,7 +132,7 @@ func (tx *CTx) _insert(fields []string, values []any, _type reflect.Type) error 
 // Select 查询数据
 func (tx *CTx) Select(v any) (int, error) {
 	defer tx.Reset()
-	if tx.table == "" {
+	if len(tx.table) < 1 {
 		return 0, fmt.Errorf("table name is empty, forgot set it?")
 	}
 	t := reflect.TypeOf(v)
@@ -174,7 +174,7 @@ func (tx *CTx) Select(v any) (int, error) {
 func (tx *CTx) _select(v any, t reflect.Type) (*sql.Rows, error) {
 	execs := make([]any, 0)
 	fields := parseSelectObject(t)
-	tx.sql.WriteString(fmt.Sprintf("SELECT %s FROM %s", strings.Join(fields, ", "), tx.table))
+	tx.sql.WriteString(fmt.Sprintf("SELECT %s FROM %s", strings.Join(fields, ", "), strings.Join(tx.table, ", ")))
 	addWheres(tx.sql, tx.storeWhere, &execs)
 	addOrders(tx.sql, tx.storeOrder, &execs)
 	addLimit(tx.sql, tx.storeLimit, &execs)
@@ -239,7 +239,7 @@ func (tx *CTx) _exec(execs ...any) error {
 
 // Reset 重置会话
 func (tx *CTx) Reset() {
-	tx.table = ""
+	tx.table = tx.table[:0]
 	tx.storeInsert.Clear()
 	tx.storeWhere = tx.storeWhere[:0]
 	tx.storeSet = tx.storeSet[:0]

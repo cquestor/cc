@@ -109,8 +109,9 @@ func (session *Session) Begin() (*CTx, error) {
 		return nil, err
 	}
 	return &CTx{
-		tx:  tx,
-		sql: &strings.Builder{},
+		tx:    tx,
+		table: make([]string, 0),
+		sql:   &strings.Builder{},
 		storeInsert: &StoreInsert{
 			fields:     make([]string, 0),
 			values:     make([][]any, 0),
