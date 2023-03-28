@@ -224,7 +224,7 @@ func (engine *Engine) shutdown(server *http.Server, quit <-chan os.Signal, done 
 func (engine *Engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := NewContext(w, r)
 	defer handleErr(ctx)
-	befores, afters := engine.find(ctx)
+	befores, afters := engine.findInterceptor(ctx)
 	if response := handleMiddlewares(ctx, befores); response != nil {
 		response.Invoke(ctx)
 	} else if response := engine.handleHandler(ctx); response != nil {
@@ -243,25 +243,6 @@ func (engine *Engine) handleHandler(ctx *Context) Response {
 	}
 }
 
-// handleMiddlewares 处理中间件
-func handleMiddlewares(ctx *Context, middlewares []IHandler) Response {
-	for _, handler := range middlewares {
-		if response := handler.Invoke(ctx); response != nil {
-			return response
-		}
-	}
-	return nil
-}
-
-// handleErr 处理错误
-func handleErr(ctx *Context) {
-	if err := recover(); err != nil {
-		message := trace(fmt.Sprintf("%s", err))
-		LogErrf("%s\n\n", message)
-		Code(http.StatusInternalServerError).Invoke(ctx)
-	}
-}
-
 // findHandler 查找处理器
 func (engine *Engine) findHandler(ctx *Context) IHandler {
 	if route, params := engine.router.GetRoute(ctx.Method, ctx.Path); route != "" {
@@ -271,8 +252,8 @@ func (engine *Engine) findHandler(ctx *Context) IHandler {
 	return nil
 }
 
-// findBefores 查找拦截器
-func (engine *Engine) find(ctx *Context) (befores []IHandler, afters []IHandler) {
+// findInterceptor 查找拦截器
+func (engine *Engine) findInterceptor(ctx *Context) (befores []IHandler, afters []IHandler) {
 	for _, group := range engine.groups {
 		if strings.HasPrefix(ctx.Path, group.prefix) {
 			befores = append(befores, group.befores...)
