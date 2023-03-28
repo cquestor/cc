@@ -1,19 +1,31 @@
-package bind
+package parser
 
 import (
 	"fmt"
 	"reflect"
 	"strconv"
-	"time"
 )
 
 // StringParser 字符串解析器
-type StringParser struct {
-}
+type StringParser struct{}
 
 // NewStringParser 构造字符串解析器
 func NewStringParser() *StringParser {
 	return &StringParser{}
+}
+
+// GetData 实现 IParser 接口
+func (parser *StringParser) GetData(v any, target reflect.Kind) (any, error) {
+	switch target {
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Int, reflect.Int8, reflect.Int32, reflect.Int64, reflect.Float32, reflect.Float64:
+		return parser.number(v.(string), target)
+	case reflect.Bool:
+		return parser.bool(v.(string))
+	case reflect.String:
+		return v, nil
+	default:
+		return nil, fmt.Errorf("invalid target: %s", target)
+	}
 }
 
 // number 将字符串转换成数字
@@ -97,11 +109,8 @@ func (parser *StringParser) number(v string, target reflect.Kind) (any, error) {
 
 // bool 将字符串转换成布尔值
 func (parser *StringParser) bool(v string) (bool, error) {
-	return strconv.ParseBool(v)
-}
-
-// time 将字符串转换成时间
-func (parser *StringParser) time(v string) (time.Time, error) {
-	layout := "2006-01-02 15:04:05"
-	return time.Parse(layout, v)
+	if v != "0" || v == "true" {
+		return true, nil
+	}
+	return false, nil
 }

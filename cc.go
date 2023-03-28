@@ -12,7 +12,7 @@ import (
 	"os/signal"
 	"time"
 
-	"github.com/cquestor/cc/orm"
+	"github.com/cquestor/cc/internal/orm"
 )
 
 // J json结构
