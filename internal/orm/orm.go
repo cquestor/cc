@@ -15,7 +15,7 @@ type Engine struct {
 // Session 数据库会话
 type Session struct {
 	db          *sql.DB
-	table       string
+	table       []string
 	sql         *strings.Builder
 	storeInsert *StoreInsert
 	storeWhere  []*StoreWhere
@@ -71,8 +71,9 @@ func NewEngine(source string) (*Engine, error) {
 // NewSession 构造数据库会话
 func (engine *Engine) NewSession() *Session {
 	return &Session{
-		db:  engine.DB,
-		sql: &strings.Builder{},
+		db:    engine.DB,
+		table: make([]string, 0),
+		sql:   &strings.Builder{},
 		storeInsert: &StoreInsert{
 			fields:     make([]string, 0),
 			values:     make([][]any, 0),
@@ -125,7 +126,7 @@ func (session *Session) Begin() (*CTx, error) {
 
 // Table 设置表格名
 func (session *Session) Table(name string) *Session {
-	session.table = name
+	session.table = append(session.table, name)
 	return session
 }
 
@@ -173,10 +174,10 @@ func (session *Session) Order(name string, desc ...bool) *Session {
 // Update 修改数据
 func (session *Session) Update() error {
 	defer session.Reset()
-	if session.table == "" {
+	if len(session.table) < 1 {
 		return fmt.Errorf("table name is empty, forgot set it?")
 	}
-	session.sql.WriteString(fmt.Sprintf("UPDATE %s", session.table))
+	session.sql.WriteString(fmt.Sprintf("UPDATE %s", session.table[0]))
 	execs := make([]any, 0)
 	addSets(session.sql, session.storeSet, &execs)
 	addWheres(session.sql, session.storeWhere, &execs)
@@ -186,10 +187,10 @@ func (session *Session) Update() error {
 // Delete 删除数据
 func (session *Session) Delete() error {
 	defer session.Reset()
-	if session.table == "" {
+	if len(session.table) < 1 {
 		return fmt.Errorf("table name is empty, forgot set it?")
 	}
-	session.sql.WriteString(fmt.Sprintf("DELETE FROM %s", session.table))
+	session.sql.WriteString(fmt.Sprintf("DELETE FROM %s", session.table[0]))
 	execs := make([]any, 0)
 	addWheres(session.sql, session.storeWhere, &execs)
 	return session._exec(execs...)
@@ -198,7 +199,7 @@ func (session *Session) Delete() error {
 // Insert 插入数据
 func (session *Session) Insert(v ...any) error {
 	defer session.Reset()
-	if session.table == "" {
+	if len(session.table) < 1 {
 		return fmt.Errorf("table name is empty, forgot set it?")
 	}
 	for _, each := range v {
@@ -211,7 +212,7 @@ func (session *Session) Insert(v ...any) error {
 			return err
 		}
 	}
-	session.sql.WriteString(fmt.Sprintf("INSERT INTO %s (%s) VALUES %s", session.table, strings.Join(session.storeInsert.fields, ", "), session.storeInsert.prepareStr.String()))
+	session.sql.WriteString(fmt.Sprintf("INSERT INTO %s (%s) VALUES %s", session.table[0], strings.Join(session.storeInsert.fields, ", "), session.storeInsert.prepareStr.String()))
 	return session._exec(session.storeInsert.execs...)
 }
 
@@ -236,7 +237,7 @@ func (session *Session) _insert(fields []string, values []any, _type reflect.Typ
 // Select 查询数据
 func (session *Session) Select(v any) (int, error) {
 	defer session.Reset()
-	if session.table == "" {
+	if len(session.table) < 1 {
 		return 0, fmt.Errorf("table name is empty, forgot set it?")
 	}
 	t := reflect.TypeOf(v)
@@ -278,7 +279,7 @@ func (session *Session) Select(v any) (int, error) {
 func (session *Session) _select(v any, t reflect.Type) (*sql.Rows, error) {
 	execs := make([]any, 0)
 	fields := parseSelectObject(t)
-	session.sql.WriteString(fmt.Sprintf("SELECT %s FROM %s", strings.Join(fields, ", "), session.table))
+	session.sql.WriteString(fmt.Sprintf("SELECT %s FROM %s", strings.Join(fields, ", "), strings.Join(session.table, ", ")))
 	addWheres(session.sql, session.storeWhere, &execs)
 	addOrders(session.sql, session.storeOrder, &execs)
 	addLimit(session.sql, session.storeLimit, &execs)
@@ -343,7 +344,7 @@ func (session *Session) _exec(execs ...any) error {
 
 // Reset 重置会话
 func (session *Session) Reset() {
-	session.table = ""
+	session.table = session.table[:0]
 	session.storeInsert.Clear()
 	session.storeWhere = session.storeWhere[:0]
 	session.storeSet = session.storeSet[:0]

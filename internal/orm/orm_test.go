@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/cquestor/cc/orm"
+	"github.com/cquestor/cc/internal/orm"
 	_ "github.com/go-sql-driver/mysql"
 )
 
