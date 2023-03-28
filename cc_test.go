@@ -9,7 +9,7 @@ import (
 	_ "embed"
 
 	"github.com/cquestor/cc"
-	middelware "github.com/cquestor/cc/middleware"
+	"github.com/cquestor/cc/middleware"
 	_ "github.com/go-sql-driver/mysql"
 )
 
@@ -30,9 +30,10 @@ var content []byte
 func TestRun(t *testing.T) {
 	c := cc.New()
 
-	cors := middelware.CorsMiddleware{}
+	cors := middleware.CorsMiddleware{}
+	clog := middleware.CLogMiddleware{}
 
-	c.Before(cors.Cors())
+	c.Before(cors.Instance(), clog.Instance())
 
 	c.Get("/", func(ctx *cc.Context) cc.Response {
 		return cc.String(http.StatusOK, "success")
@@ -48,7 +49,7 @@ func TestRun(t *testing.T) {
 
 	age := 10
 
-	user := c.Group("/:user")
+	user := c.Group("/user")
 	user.Before(func(ctx *cc.Context) cc.Response {
 		age += 90
 		return nil

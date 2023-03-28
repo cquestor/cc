@@ -12,6 +12,7 @@ import (
 	"os/signal"
 	"path"
 	"strings"
+	"text/tabwriter"
 	"time"
 
 	"github.com/cquestor/cc/internal/orm"
@@ -79,6 +80,7 @@ func (group *RouteGroup) Group(prefix string) *RouteGroup {
 
 // Run 启动 Web Server
 func (engine *Engine) Run(options ...any) {
+	banner()
 	engine.parseOptions(options...)
 	if err := engine.parseConfig(); err != nil {
 		LogErrf("Parse config err: %v\n", err)
@@ -261,4 +263,27 @@ func (engine *Engine) findInterceptor(ctx *Context) (befores []IHandler, afters 
 		}
 	}
 	return befores, afters
+}
+
+// DrawRoute 输出路由
+func (engine *Engine) DrawRoute() {
+	w := tabwriter.NewWriter(os.Stderr, 10, 0, 1, ' ', tabwriter.Debug)
+	fmt.Fprintf(w, "Index\tMethod\tPattern\tType\n")
+	fmt.Fprintf(w, "-----\t------\t-------\t----\n")
+	index := -1
+	for method, routes := range engine.handlers {
+		for pattern := range routes {
+			index++
+			routeType := "absolute"
+			if strings.Contains(pattern, ":") {
+				routeType = "dynamic"
+			}
+			if strings.Contains(pattern, "*") {
+				routeType = "wild"
+			}
+			fmt.Fprintf(w, "%d\t%s\t%s\t%s\n", index, method, pattern, routeType)
+		}
+	}
+	w.Flush()
+	fmt.Println()
 }

@@ -1,4 +1,4 @@
-package middelware
+package middleware
 
 import (
 	"net/http"
@@ -30,7 +30,7 @@ func (cors *CorsMiddleware) SetHeaders(headers ...string) {
 }
 
 // Cors 跨域设置
-func (cors *CorsMiddleware) Cors() func(*cc.Context) cc.Response {
+func (cors *CorsMiddleware) Instance() func(*cc.Context) cc.Response {
 	if cors.Origin == "" {
 		cors.Origin = "*"
 	}
