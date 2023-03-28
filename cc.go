@@ -10,9 +10,12 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path"
+	"strings"
 	"time"
 
 	"github.com/cquestor/cc/internal/orm"
+	"github.com/cquestor/cc/internal/router"
 )
 
 // J json结构
@@ -20,10 +23,22 @@ type J map[string]any
 
 // Engine Web引擎
 type Engine struct {
+	*RouteGroup
 	config   *AppConfig
-	router   map[string]func()
+	router   router.IRouter
+	handlers map[string]map[string]IHandler
 	options  map[string]any
 	database *orm.Engine
+	groups   []*RouteGroup
+}
+
+// RouteGroup 分组路由
+type RouteGroup struct {
+	prefix  string
+	befores []IHandler
+	afters  []IHandler
+	parent  *RouteGroup
+	engine  *Engine
 }
 
 type (
@@ -40,11 +55,26 @@ const (
 
 // New 构造Engine
 func New() *Engine {
-	return &Engine{
-		config:  NewAppConfig(),
-		router:  make(map[string]func()),
-		options: make(map[string]any),
+	engine := &Engine{
+		config:   NewAppConfig(),
+		router:   router.NewRouter(),
+		handlers: make(map[string]map[string]IHandler),
+		options:  make(map[string]any),
 	}
+	engine.RouteGroup = &RouteGroup{engine: engine}
+	engine.groups = []*RouteGroup{engine.RouteGroup}
+	return engine
+}
+
+// Group 创建新的路由分组
+func (group *RouteGroup) Group(prefix string) *RouteGroup {
+	newGroup := &RouteGroup{
+		prefix: group.prefix + prefix,
+		parent: group,
+		engine: group.engine,
+	}
+	group.engine.groups = append(group.engine.groups, newGroup)
+	return newGroup
 }
 
 // Run 启动 Web Server
@@ -74,6 +104,40 @@ func (engine *Engine) Run(options ...any) {
 	engine.start(server)
 	<-done
 	LogInfo("Server stopped")
+}
+
+// Get 添加 GET 请求
+func (group *RouteGroup) Get(pattern string, handler func(*Context) Response) {
+	group.addRoute(http.MethodGet, pattern, Handler(handler))
+}
+
+// Post 添加 POST 请求
+func (group *RouteGroup) Post(pattern string, handler func(*Context) Response) {
+	group.addRoute(http.MethodPost, pattern, Handler(handler))
+}
+
+// Before 添加拦截器
+func (group *RouteGroup) Before(v ...func(*Context) Response) {
+	for _, handler := range v {
+		group.befores = append(group.befores, Handler(handler))
+	}
+}
+
+// After 添加后置处理拦截器
+func (group *RouteGroup) After(v ...func(*Context) Response) {
+	for _, handler := range v {
+		group.afters = append(group.afters, Handler(handler))
+	}
+}
+
+// addRoute 添加路由
+func (group *RouteGroup) addRoute(method, pattern string, handler IHandler) {
+	pattern = path.Join(group.prefix, pattern)
+	group.engine.router.AddRoute(method, pattern)
+	if group.engine.handlers[method] == nil {
+		group.engine.handlers[method] = make(map[string]IHandler)
+	}
+	group.engine.handlers[method][pattern] = handler
 }
 
 // start 启动服务 http/https
@@ -157,4 +221,63 @@ func (engine *Engine) shutdown(server *http.Server, quit <-chan os.Signal, done 
 }
 
 // ServeHTTP 实现 http.Handler 接口
-func (engine *Engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {}
+func (engine *Engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	ctx := NewContext(w, r)
+	defer handleErr(ctx)
+	befores, afters := engine.find(ctx)
+	if response := handleMiddlewares(ctx, befores); response != nil {
+		response.Invoke(ctx)
+	} else if response := engine.handleHandler(ctx); response != nil {
+		response.Invoke(ctx)
+	} else if response := handleMiddlewares(ctx, afters); response != nil {
+		response.Invoke(ctx)
+	}
+}
+
+// handleHandler 执行处理器
+func (engine *Engine) handleHandler(ctx *Context) Response {
+	if handler := engine.findHandler(ctx); handler != nil {
+		return handler.Invoke(ctx)
+	} else {
+		return String(http.StatusNotFound, "404 Not Found: %s", ctx.Path)
+	}
+}
+
+// handleMiddlewares 处理中间件
+func handleMiddlewares(ctx *Context, middlewares []IHandler) Response {
+	for _, handler := range middlewares {
+		if response := handler.Invoke(ctx); response != nil {
+			return response
+		}
+	}
+	return nil
+}
+
+// handleErr 处理错误
+func handleErr(ctx *Context) {
+	if err := recover(); err != nil {
+		message := trace(fmt.Sprintf("%s", err))
+		LogErrf("%s\n\n", message)
+		Code(http.StatusInternalServerError).Invoke(ctx)
+	}
+}
+
+// findHandler 查找处理器
+func (engine *Engine) findHandler(ctx *Context) IHandler {
+	if route, params := engine.router.GetRoute(ctx.Method, ctx.Path); route != "" {
+		ctx.Params = params
+		return engine.handlers[ctx.Method][route]
+	}
+	return nil
+}
+
+// findBefores 查找拦截器
+func (engine *Engine) find(ctx *Context) (befores []IHandler, afters []IHandler) {
+	for _, group := range engine.groups {
+		if strings.HasPrefix(ctx.Path, group.prefix) {
+			befores = append(befores, group.befores...)
+			afters = append(afters, group.afters...)
+		}
+	}
+	return befores, afters
+}

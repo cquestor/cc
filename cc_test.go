@@ -2,6 +2,7 @@ package cc_test
 
 import (
 	"fmt"
+	"net/http"
 	"os"
 	"testing"
 
@@ -27,5 +28,18 @@ var content []byte
 
 func TestRun(t *testing.T) {
 	c := cc.New()
+
+	c.Get("/", func(ctx *cc.Context) cc.Response {
+		return cc.String(http.StatusOK, "success")
+	})
+
+	c.Get("/hello", func(ctx *cc.Context) cc.Response {
+		return cc.Html(http.StatusOK, []byte("<h1>Hello CC!</h1>"))
+	})
+
+	c.Get("/panic", func(ctx *cc.Context) cc.Response {
+		panic("recovery test")
+	})
+
 	c.Run(cc.CAppConfig(content))
 }
