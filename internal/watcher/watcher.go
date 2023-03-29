@@ -47,6 +47,15 @@ func NewWatcher(basePath string) (*Watcher, error) {
 func (watcher *Watcher) Init() error {
 	return filepath.Walk(watcher.BasePath, func(path string, info os.FileInfo, err error) error {
 		if info.IsDir() {
+			if watcher.inIncludes(path) {
+				return watcher.AddWatch(path)
+			}
+			if strings.HasPrefix(filepath.Base(path), ".") {
+				return nil
+			}
+			if watcher.inExcludes(path) {
+				return nil
+			}
 			return watcher.AddWatch(path)
 		}
 		return nil

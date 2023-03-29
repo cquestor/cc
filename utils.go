@@ -7,6 +7,9 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
+	"time"
+
+	"github.com/cquestor/cc/internal/logger"
 )
 
 // handleMiddlewares 处理中间件
@@ -43,18 +46,32 @@ func trace(message string) string {
 }
 
 // clearScreen 清屏
-func clearScreen() {
+func clearScreen() error {
 	switch runtime.GOOS {
 	case "darwin", "linux", "posix":
 		cmd := exec.Command("clear")
-		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
+		cmd.Stdout = os.Stdout
 		cmd.Run()
 	case "windows":
 		cmd := exec.Command("cmd", "/c", "cls")
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		cmd.Run()
+	}
+	return nil
+}
+
+// loadSpin 加载动画
+func loadSpin(done chan int) {
+	for {
+		select {
+		case <-done:
+			return
+		default:
+			logger.Spin(logger.ColorGreen, logger.StyleBold, "Rebuilding...")
+			time.Sleep(80 * time.Millisecond)
+		}
 	}
 }
 

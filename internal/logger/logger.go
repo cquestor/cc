@@ -3,6 +3,7 @@ package logger
 import (
 	"fmt"
 	"io"
+	"os"
 	"sync"
 	"time"
 )
@@ -124,10 +125,8 @@ func (logger *CLogger) Printf(format string, v ...any) {
 }
 
 // Spin 加载动画
-func (logger *CLogger) Spin(color TypeColor, style TypeStyle, message string) {
-	logger.lock.Lock()
-	defer logger.lock.Unlock()
-	logger.Write([]byte(fmt.Sprintf("\r\033[%d;%dm%s %s\033[0m", style, color, spinner(), message)))
+func Spin(color TypeColor, style TypeStyle, message string) {
+	os.Stderr.Write([]byte(fmt.Sprintf("\r\033[%d;%dm%s %s\033[0m", style, color, spinner(), message)))
 }
 
 // appendOut 添加输出信息

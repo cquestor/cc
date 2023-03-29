@@ -120,24 +120,25 @@ func (engine *Engine) Run(options ...any) {
 		needBuild := make(chan int)
 		go watch.Watch()
 		go engine.handleWatch(watch, needBuild)
-		f := watcher.Debounce(func() {
-			if err := engine.cbuild(); err != nil {
-				LogErr(err)
-			}
-		}, time.Duration(engine.config.Watch.Debounce)*time.Millisecond)
-		if err := engine.cbuild(); err != nil {
-			LogErr(err)
-			os.Exit(1)
-		}
+		buildDone := make(chan int, 1)
+		var cmd *exec.Cmd
 		for {
-			clearScreen()
-			cmd, err := engine.crun()
-			if err != nil {
+			go loadSpin(buildDone)
+			if err := cbuild(engine.config.Main); err != nil {
+				buildDone <- 1
 				LogErr(err)
+			} else {
+				buildDone <- 1
+				clearScreen()
+				if cmd != nil {
+					cmd.Process.Kill()
+				}
+				cmd, err = crun()
+				if err != nil {
+					LogErr(err)
+				}
 			}
 			<-needBuild
-			cmd.Process.Kill()
-			f()
 		}
 	}
 }
@@ -178,11 +179,14 @@ func (group *RouteGroup) addRoute(method, pattern string, handler IHandler) {
 
 // handleWatch 处理监听到的事件
 func (engine *Engine) handleWatch(watch *watcher.Watcher, needBuild chan<- int) {
+	f := watcher.Debounce(func() {
+		needBuild <- 1
+	}, time.Duration(engine.config.Watch.Debounce)*time.Millisecond)
 	for {
 		select {
 		case event := <-watch.Events:
 			if event.Op == watcher.WRITE {
-				needBuild <- 1
+				f()
 			}
 			if event.Op == watcher.CREATE {
 				if err := watch.AddWatch(event.Name); err != nil {
@@ -196,7 +200,7 @@ func (engine *Engine) handleWatch(watch *watcher.Watcher, needBuild chan<- int) 
 	}
 }
 
-// serverReady
+// serverReady 启动服务
 func (engine *Engine) serverReady(server *http.Server) {
 	done := make(chan struct{}, 1)
 	quit := make(chan os.Signal, 1)
@@ -363,8 +367,8 @@ func (engine *Engine) DrawRoute() {
 }
 
 // cbuild 编译
-func (engine *Engine) cbuild() error {
-	cmd := exec.Command("go", "build", "-o", filepath.Join(".gone", DEFAULT_BUILD_NAME), engine.config.Main)
+func cbuild(main string) error {
+	cmd := exec.Command("go", "build", "-o", filepath.Join(".gone", DEFAULT_BUILD_NAME), main)
 	if err := cmd.Start(); err != nil {
 		return err
 	}
@@ -375,7 +379,7 @@ func (engine *Engine) cbuild() error {
 }
 
 // crun 运行
-func (engine *Engine) crun() (*exec.Cmd, error) {
+func crun() (*exec.Cmd, error) {
 	cmd := exec.Command(filepath.Join(".gone", DEFAULT_BUILD_NAME))
 	cmd.Env = append(cmd.Env, "GONE_ROUTINE=1")
 	stdout, err := cmd.StdoutPipe()
@@ -384,6 +388,9 @@ func (engine *Engine) crun() (*exec.Cmd, error) {
 	}
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
+		return nil, err
+	}
+	if err := cmd.Start(); err != nil {
 		return nil, err
 	}
 	go io.Copy(os.Stdout, stdout)

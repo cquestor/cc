@@ -22,7 +22,7 @@ func TestLogger(t *testing.T) {
 	t.Run("spin", func(t *testing.T) {
 		index := 0
 		for index < 50 {
-			testLog.Spin(logger.ColorGreen, logger.StyleBold, "Loading...")
+			logger.Spin(logger.ColorGreen, logger.StyleBold, "Loading...")
 			index++
 			time.Sleep(time.Millisecond * 80)
 		}
