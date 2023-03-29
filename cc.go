@@ -7,16 +7,21 @@ package cc
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path"
+	"path/filepath"
 	"strings"
+	"syscall"
 	"text/tabwriter"
 	"time"
 
 	"github.com/cquestor/cc/internal/orm"
 	"github.com/cquestor/cc/internal/router"
+	"github.com/cquestor/cc/internal/watcher"
 )
 
 // J json结构
@@ -54,6 +59,8 @@ const (
 	optKeyPath   = "KeyPath"
 )
 
+const DEFAULT_BUILD_NAME = "main"
+
 // New 构造Engine
 func New() *Engine {
 	engine := &Engine{
@@ -90,22 +97,49 @@ func (engine *Engine) Run(options ...any) {
 		LogErrf("Init config err: %v\n", err)
 		os.Exit(1)
 	}
-	listenAddr := fmt.Sprintf(":%d", engine.config.Port)
 	server := &http.Server{
-		Addr:         listenAddr,
+		Addr:         fmt.Sprintf(":%d", engine.config.Port),
 		Handler:      engine,
 		ReadTimeout:  time.Duration(engine.config.ReadTimeout) * time.Second,
 		WriteTimeout: time.Duration(engine.config.WriteTimeout) * time.Second,
 		IdleTimeout:  time.Duration(engine.config.IdleTimeout) * time.Second,
 	}
-	done := make(chan struct{}, 1)
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, os.Interrupt)
-	go engine.shutdown(server, quit, done)
-	LogInfo("Server is ready to handle requests at", listenAddr)
-	engine.start(server)
-	<-done
-	LogInfo("Server stopped")
+	if os.Getenv("GONE_ROUTINE") != "" || engine.config.Production {
+		engine.serverReady(server)
+	} else {
+		dirpath, _ := os.Getwd()
+		watch, err := watcher.NewWatcher(dirpath)
+		if err != nil {
+			LogErr(err.Error())
+			os.Exit(1)
+		}
+		if err := engine.initWatch(watch); err != nil {
+			LogErr(err.Error())
+			os.Exit(1)
+		}
+		needBuild := make(chan int)
+		go watch.Watch()
+		go engine.handleWatch(watch, needBuild)
+		f := watcher.Debounce(func() {
+			if err := engine.cbuild(); err != nil {
+				LogErr(err)
+			}
+		}, time.Duration(engine.config.Watch.Debounce)*time.Millisecond)
+		if err := engine.cbuild(); err != nil {
+			LogErr(err)
+			os.Exit(1)
+		}
+		for {
+			clearScreen()
+			cmd, err := engine.crun()
+			if err != nil {
+				LogErr(err)
+			}
+			<-needBuild
+			cmd.Process.Kill()
+			f()
+		}
+	}
 }
 
 // Get 添加 GET 请求
@@ -140,6 +174,38 @@ func (group *RouteGroup) addRoute(method, pattern string, handler IHandler) {
 		group.engine.handlers[method] = make(map[string]IHandler)
 	}
 	group.engine.handlers[method][pattern] = handler
+}
+
+// handleWatch 处理监听到的事件
+func (engine *Engine) handleWatch(watch *watcher.Watcher, needBuild chan<- int) {
+	for {
+		select {
+		case event := <-watch.Events:
+			if event.Op == watcher.WRITE {
+				needBuild <- 1
+			}
+			if event.Op == watcher.CREATE {
+				if err := watch.AddWatch(event.Name); err != nil {
+					LogWarn(err)
+				}
+			}
+		case err := <-watch.Errs:
+			LogErrf("watcher error occurs, your hot-restart while stop: %s", err.Error())
+			watch.Close()
+		}
+	}
+}
+
+// serverReady
+func (engine *Engine) serverReady(server *http.Server) {
+	done := make(chan struct{}, 1)
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
+	go engine.shutdown(server, quit, done)
+	LogInfo("Server is ready to handle requests at", server.Addr)
+	engine.start(server)
+	<-done
+	LogInfo("Server stopped")
 }
 
 // start 启动服务 http/https
@@ -202,6 +268,14 @@ func (engine *Engine) initConfig() error {
 		LogWarn("Database source not found, you may not be able to use relevant modules")
 	}
 	return nil
+}
+
+// initWatch 初始化监听
+func (engine *Engine) initWatch(watch *watcher.Watcher) error {
+	watch.AddEvent(watcher.CREATE, watcher.WRITE)
+	watch.AddIncludes(engine.config.Watch.Includes...)
+	watch.AddExcludes(engine.config.Watch.Excludes...)
+	return watch.Init()
 }
 
 // shutdown 服务关闭处理
@@ -286,4 +360,33 @@ func (engine *Engine) DrawRoute() {
 	}
 	w.Flush()
 	fmt.Println()
+}
+
+// cbuild 编译
+func (engine *Engine) cbuild() error {
+	cmd := exec.Command("go", "build", "-o", filepath.Join(".gone", DEFAULT_BUILD_NAME), engine.config.Main)
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	if err := cmd.Wait(); err != nil {
+		return err
+	}
+	return nil
+}
+
+// crun 运行
+func (engine *Engine) crun() (*exec.Cmd, error) {
+	cmd := exec.Command(filepath.Join(".gone", DEFAULT_BUILD_NAME))
+	cmd.Env = append(cmd.Env, "GONE_ROUTINE=1")
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return nil, err
+	}
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return nil, err
+	}
+	go io.Copy(os.Stdout, stdout)
+	go io.Copy(os.Stderr, stderr)
+	return cmd, nil
 }

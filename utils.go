@@ -3,6 +3,8 @@ package cc
 import (
 	"fmt"
 	"net/http"
+	"os"
+	"os/exec"
 	"runtime"
 	"strings"
 )
@@ -38,6 +40,22 @@ func trace(message string) string {
 		str.WriteString(fmt.Sprintf("\n\t%s:%d", file, line))
 	}
 	return str.String()
+}
+
+// clearScreen 清屏
+func clearScreen() {
+	switch runtime.GOOS {
+	case "darwin", "linux", "posix":
+		cmd := exec.Command("clear")
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		cmd.Run()
+	case "windows":
+		cmd := exec.Command("cmd", "/c", "cls")
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		cmd.Run()
+	}
 }
 
 func banner() {

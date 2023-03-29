@@ -7,6 +7,8 @@ import (
 	"time"
 )
 
+// TODO LogFatal LogFatalf os.Exit(1)
+
 const (
 	ColorRed TypeColor = iota + 31
 	ColorGreen
