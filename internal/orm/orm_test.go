@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/cquestor/cc/internal/orm"
-	_ "github.com/go-sql-driver/mysql"
 )
 
 type Account struct {

@@ -10,7 +10,6 @@ import (
 
 	"github.com/cquestor/cc"
 	"github.com/cquestor/cc/middleware"
-	_ "github.com/go-sql-driver/mysql"
 )
 
 func TestConfig(t *testing.T) {
