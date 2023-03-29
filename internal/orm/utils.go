@@ -35,7 +35,7 @@ func addWheres(sql *strings.Builder, wheres []*StoreWhere, execs *[]any) {
 	}
 	for i, e := range wheres {
 		if i > 0 {
-			sql.WriteString(", ")
+			sql.WriteString(" AND ")
 		}
 		sql.WriteString(e.prepareStr)
 		*execs = append(*execs, e.exec)
