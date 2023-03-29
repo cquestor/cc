@@ -5,24 +5,28 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+
+	"github.com/cquestor/cc/internal/orm"
 )
 
 // Context 上下文
 type Context struct {
-	Req    *http.Request
-	Writer http.ResponseWriter
-	Method string
-	Path   string
-	Params map[string]string
+	session *orm.Session
+	Req     *http.Request
+	Writer  http.ResponseWriter
+	Method  string
+	Path    string
+	Params  map[string]string
 }
 
 // NewContext 新建上下文
-func NewContext(w http.ResponseWriter, r *http.Request) *Context {
+func NewContext(w http.ResponseWriter, r *http.Request, session *orm.Session) *Context {
 	return &Context{
-		Req:    r,
-		Writer: w,
-		Method: r.Method,
-		Path:   r.URL.Path,
+		session: session,
+		Req:     r,
+		Writer:  w,
+		Method:  r.Method,
+		Path:    r.URL.Path,
 	}
 }
 
@@ -70,6 +74,14 @@ func (ctx *Context) Cookie(key string) *http.Cookie {
 // SetCookie 设置响应Cookie
 func (ctx *Context) SetCookie(c *http.Cookie) {
 	http.SetCookie(ctx.Writer, c)
+}
+
+func (ctx *Context) Session() *orm.Session {
+	if ctx.session == nil {
+		LogErr("have no database connection")
+		return nil
+	}
+	return ctx.session
 }
 
 // File 获取上传文件

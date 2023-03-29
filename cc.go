@@ -302,7 +302,11 @@ func (engine *Engine) shutdown(server *http.Server, quit <-chan os.Signal, done 
 
 // ServeHTTP 实现 http.Handler 接口
 func (engine *Engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	ctx := NewContext(w, r)
+	var session *orm.Session
+	if engine.database != nil {
+		session = engine.database.NewSession()
+	}
+	ctx := NewContext(w, r, session)
 	defer handleErr(ctx)
 	befores, afters := engine.findInterceptor(ctx)
 	if response := handleMiddlewares(ctx, befores); response != nil {
