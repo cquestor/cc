@@ -3,81 +3,126 @@ package cc
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 )
 
-// typeResponse 响应类型
-type typeResponse int
-
-const (
-	respString typeResponse = iota
-	respHtml
-	respJson
-	respBytes
-)
-
-// Response 响应
-type Response struct {
-	Code int
-	Data any
-	Type typeResponse
+// Response 响应接口
+type Response interface {
+	Invoke(ctx *Context)
 }
 
-// Invoke 响应执行
-func (response *Response) Invoke(ctx *Context) {
-	switch response.Type {
-	case respString:
-		ctx.SetHeader("Content-Type", "text/plain; charset=utf-8")
-		ctx.Writer.WriteHeader(response.Code)
-		ctx.Writer.Write([]byte(response.Data.(string)))
-	case respHtml:
-		ctx.SetHeader("Content-Type", "text/html; charset=utf-8")
-		ctx.Writer.WriteHeader(response.Code)
-		ctx.Writer.Write(response.Data.([]byte))
-	case respJson:
-		ctx.SetHeader("Content-Type", "application/json; charset=utf-8")
-		ctx.Writer.WriteHeader(response.Code)
-		encoder := json.NewEncoder(ctx.Writer)
-		if err := encoder.Encode(response.Data); err != nil {
-			panic(err)
-		}
-	case respBytes:
-		ctx.Writer.WriteHeader(response.Code)
-		ctx.Writer.Write(response.Data.([]byte))
-	}
+// responseString 字符串响应
+type responseString struct {
+	Code  int
+	Value string
+}
+
+// responseHtml 网页响应
+type responseHtml struct {
+	Code  int
+	Value []byte
+}
+
+// responseJson json响应
+type responseJson struct {
+	Code  int
+	Value any
+}
+
+// responseData 字节流制响应
+type responseData struct {
+	Code  int
+	Value []byte
+}
+
+// responseRedirect 重定向响应
+type responseRedirect struct {
+	Code  int
+	Value string
+}
+
+// responseCode 状态码响应
+type responseCode struct {
+	Code int
 }
 
 // String 构造字符串响应
-func String(code int, format string, v ...any) *Response {
-	return &Response{
-		Code: code,
-		Data: fmt.Sprintf(format, v...),
-		Type: respString,
+func String(code int, format string, v ...any) *responseString {
+	return &responseString{
+		Code:  code,
+		Value: fmt.Sprintf(format, v...),
 	}
+}
+
+func (response *responseString) Invoke(ctx *Context) {
+	ctx.SetHeader("Content-Type", "text/plain; charset=utf-8")
+	ctx.setStatusCode(response.Code)
+	ctx.Writer.Write([]byte(response.Value))
 }
 
 // Html 构造网页响应
-func Html(code int, v []byte) *Response {
-	return &Response{
-		Code: code,
-		Data: v,
-		Type: respHtml,
+func Html(code int, v []byte) *responseHtml {
+	return &responseHtml{
+		Code:  code,
+		Value: v,
 	}
+}
+
+func (response *responseHtml) Invoke(ctx *Context) {
+	ctx.SetHeader("Content-Type", "text/html; charset=utf-8")
+	ctx.setStatusCode(response.Code)
+	ctx.Writer.Write(response.Value)
 }
 
 // Json 构造 json 响应
-func Json(code int, v any) *Response {
-	return &Response{
-		Code: code,
-		Data: v,
-		Type: respJson,
+func Json(code int, v any) *responseJson {
+	return &responseJson{
+		Code:  code,
+		Value: v,
 	}
 }
 
-// Data 构造二进制响应
-func Data(code int, v []byte) *Response {
-	return &Response{
-		Code: code,
-		Data: v,
-		Type: respBytes,
+func (response *responseJson) Invoke(ctx *Context) {
+	ctx.SetHeader("Content-Type", "application/json; charset=utf-8")
+	ctx.setStatusCode(response.Code)
+	encoder := json.NewEncoder(ctx.Writer)
+	if err := encoder.Encode(response.Value); err != nil {
+		panic(err)
 	}
+}
+
+// Data 构造字节流响应
+func Data(code int, v []byte) *responseData {
+	return &responseData{
+		Code:  code,
+		Value: v,
+	}
+}
+
+func (response *responseData) Invoke(ctx *Context) {
+	ctx.setStatusCode(response.Code)
+	ctx.Writer.Write(response.Value)
+}
+
+// Redirect 构造重定向响应
+func Redirect(code int, v string) *responseRedirect {
+	return &responseRedirect{
+		Code:  code,
+		Value: v,
+	}
+}
+
+func (response *responseRedirect) Invoke(ctx *Context) {
+	http.Redirect(ctx.Writer, ctx.Req, response.Value, response.Code)
+}
+
+// Code 构造状态码响应
+func Code(code int) *responseCode {
+	return &responseCode{
+		Code: code,
+	}
+}
+
+func (response *responseCode) Invoke(ctx *Context) {
+	ctx.setStatusCode(response.Code)
 }
