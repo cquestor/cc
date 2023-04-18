@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/cquestor/cc/internal/orm"
+	"github.com/cquestor/cc/orm"
 )
 
 type Account struct {

@@ -3,7 +3,7 @@ package router_test
 import (
 	"testing"
 
-	"github.com/cquestor/cc/internal/router"
+	"github.com/cquestor/cc/router"
 )
 
 func TestRouter(t *testing.T) {

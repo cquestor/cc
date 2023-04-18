@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/cquestor/cc/internal/bind/binder"
+	"github.com/cquestor/cc/bind/binder"
 )
 
 func TestParse(t *testing.T) {

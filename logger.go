@@ -3,7 +3,7 @@ package cc
 import (
 	"os"
 
-	"github.com/cquestor/cc/internal/logger"
+	"github.com/cquestor/cc/logger"
 )
 
 var (

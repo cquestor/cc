@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/cquestor/cc/internal/watcher"
+	"github.com/cquestor/cc/watcher"
 )
 
 func TestWatch(t *testing.T) {

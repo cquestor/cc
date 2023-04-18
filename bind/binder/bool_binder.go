@@ -4,23 +4,23 @@ import (
 	"errors"
 	"reflect"
 
-	"github.com/cquestor/cc/internal/bind/parser"
+	"github.com/cquestor/cc/bind/parser"
 )
 
-// NumberBinder 数字绑定器
-type NumberBinder struct {
+// BoolBinder 布尔绑定器
+type BoolBinder struct {
 	parser parser.IParser
 }
 
-// NewNumberBinder 构造数字绑定器
-func NewNumberBinder() *NumberBinder {
-	return &NumberBinder{
-		parser: parser.GetParser("number"),
+// NewBoolBinder 构造布尔绑定器
+func NewBoolBinder() *BoolBinder {
+	return &BoolBinder{
+		parser: parser.GetParser("bool"),
 	}
 }
 
-// Bind 绑定数字
-func (binder *NumberBinder) Bind(value any, v any) error {
+// Bind 绑定布尔值
+func (binder *BoolBinder) Bind(value any, v any) error {
 	_v := reflect.ValueOf(v)
 	if _v.Kind() != reflect.Ptr {
 		return errors.New("bind target must be a ptr")

@@ -6,7 +6,7 @@ import (
 	"mime/multipart"
 	"net/http"
 
-	"github.com/cquestor/cc/internal/orm"
+	"github.com/cquestor/cc/orm"
 )
 
 // Context 上下文

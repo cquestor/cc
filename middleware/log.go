@@ -2,7 +2,7 @@ package middleware
 
 import (
 	"github.com/cquestor/cc"
-	"github.com/cquestor/cc/internal/logger"
+	"github.com/cquestor/cc/logger"
 )
 
 // CLogMiddleware 日志中间件

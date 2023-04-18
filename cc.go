@@ -19,15 +19,13 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/cquestor/cc/internal/orm"
-	"github.com/cquestor/cc/internal/router"
-	"github.com/cquestor/cc/internal/watcher"
+	"github.com/cquestor/cc/orm"
+	"github.com/cquestor/cc/router"
+	"github.com/cquestor/cc/watcher"
 )
 
 // J json结构
 type J map[string]any
-
-type Session orm.Session
 
 // Engine Web引擎
 type Engine struct {

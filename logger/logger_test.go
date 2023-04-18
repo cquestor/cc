@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cquestor/cc/internal/logger"
+	"github.com/cquestor/cc/logger"
 )
 
 func TestLogger(t *testing.T) {

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cquestor/cc/internal/logger"
+	"github.com/cquestor/cc/logger"
 )
 
 // handleMiddlewares 处理中间件
