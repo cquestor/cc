@@ -27,6 +27,8 @@ import (
 // J json结构
 type J map[string]any
 
+type Session orm.Session
+
 // Engine Web引擎
 type Engine struct {
 	*RouteGroup
