@@ -133,7 +133,7 @@ func (session *Session) Table(name string) *Session {
 
 // Where 添加 Where 子句
 func (session *Session) Where(field, flag string, v any) *Session {
-	session.storeWhere = append(session.storeWhere, &StoreWhere{prepareStr: fmt.Sprintf("%s%s?", field, flag), exec: v})
+	session.storeWhere = append(session.storeWhere, &StoreWhere{prepareStr: fmt.Sprintf("%s %s ?", field, flag), exec: v})
 	return session
 }
 
