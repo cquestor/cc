@@ -27,7 +27,7 @@ func (tx *CTx) Table(name string) *CTx {
 
 // Where 添加 Where 子句
 func (tx *CTx) Where(field, flag string, v any) *CTx {
-	tx.storeWhere = append(tx.storeWhere, &StoreWhere{prepareStr: fmt.Sprintf("%s %s ?", field, flag), exec: v})
+	tx.storeWhere = append(tx.storeWhere, &StoreWhere{prepareStr: fmt.Sprintf("%s%s?", field, flag), exec: v})
 	return tx
 }
 

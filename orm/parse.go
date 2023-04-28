@@ -22,10 +22,10 @@ func parseInsertObject(v any) ([]string, []any, reflect.Type) {
 		if interested, tag := isInsertInterested(field.Tag.Get(myTag)); !interested {
 			continue
 		} else if tag != "" {
-			fields = append(fields, tag)
+			fields = append(fields, "`"+tag+"`")
 			values = append(values, e.Field(i).Interface())
 		} else {
-			fields = append(fields, strings.ToLower(field.Name))
+			fields = append(fields, "`"+field.Name+"`")
 			values = append(values, e.Field(i).Interface())
 		}
 	}
@@ -43,9 +43,9 @@ func parseSelectObject(t reflect.Type) []string {
 		if interested, tag := isSelectInterested(field.Tag.Get(myTag)); !interested {
 			continue
 		} else if tag != "" {
-			fields = append(fields, tag)
+			fields = append(fields, "`"+tag+"`")
 		} else {
-			fields = append(fields, strings.ToLower(field.Name))
+			fields = append(fields, "`"+field.Name+"`")
 		}
 	}
 	return fields
