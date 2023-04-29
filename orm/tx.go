@@ -21,7 +21,7 @@ type CTx struct {
 
 // Table 设置表格名
 func (tx *CTx) Table(name string) *CTx {
-	tx.table = append(tx.table, name)
+	tx.table = append(tx.table, "`"+name+"`")
 	return tx
 }
 
