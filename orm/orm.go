@@ -127,7 +127,7 @@ func (session *Session) Begin() (*CTx, error) {
 
 // Table 设置表格名
 func (session *Session) Table(name string) *Session {
-	session.table = append(session.table, name)
+	session.table = append(session.table, "`"+name+"`")
 	return session
 }
 
