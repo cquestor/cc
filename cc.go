@@ -14,6 +14,7 @@ import (
 	"os/signal"
 	"path"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"syscall"
 	"text/tabwriter"
@@ -59,7 +60,7 @@ const (
 	optKeyPath   = "KeyPath"
 )
 
-const DEFAULT_BUILD_NAME = "main"
+var DEFAULT_BUILD_NAME = "main"
 
 // New 构造Engine
 func New() *Engine {
@@ -88,6 +89,7 @@ func (group *RouteGroup) Group(prefix string) *RouteGroup {
 // Run 启动 Web Server
 func (engine *Engine) Run(options ...any) {
 	banner()
+	changeOS()
 	engine.parseOptions(options...)
 	if err := engine.parseConfig(); err != nil {
 		LogErrf("Parse config err: %v\n", err)
@@ -133,7 +135,7 @@ func (engine *Engine) Run(options ...any) {
 				if cmd != nil {
 					cmd.Process.Kill()
 				}
-				cmd, err = crun()
+				cmd, err = crun(dirpath)
 				if err != nil {
 					LogErr(err)
 				}
@@ -383,8 +385,8 @@ func cbuild(main string) error {
 }
 
 // crun 运行
-func crun() (*exec.Cmd, error) {
-	cmd := exec.Command(filepath.Join(".gone", DEFAULT_BUILD_NAME))
+func crun(basePath string) (*exec.Cmd, error) {
+	cmd := exec.Command(filepath.Join(basePath, ".gone", DEFAULT_BUILD_NAME))
 	cmd.Env = append(cmd.Env, "GONE_ROUTINE=1")
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -400,4 +402,10 @@ func crun() (*exec.Cmd, error) {
 	go io.Copy(os.Stdout, stdout)
 	go io.Copy(os.Stderr, stderr)
 	return cmd, nil
+}
+
+func changeOS() {
+	if runtime.GOOS == "windows" {
+		DEFAULT_BUILD_NAME = "main.exe"
+	}
 }

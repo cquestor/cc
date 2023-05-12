@@ -17,11 +17,16 @@ type CTx struct {
 	storeSet    []*StoreSet
 	storeLimit  *StoreLimit
 	storeOrder  []*StoreOrder
+	lastExec    sql.Result
+}
+
+func (tx *CTx) LastExec() sql.Result {
+	return tx.lastExec
 }
 
 // Table 设置表格名
 func (tx *CTx) Table(name string) *CTx {
-	tx.table = append(tx.table, name)
+	tx.table = append(tx.table, "`"+name+"`")
 	return tx
 }
 
@@ -233,7 +238,8 @@ func (tx *CTx) _exec(execs ...any) error {
 		return err
 	}
 	defer stmt.Close()
-	_, err = stmt.Exec(execs...)
+	res, err := stmt.Exec(execs...)
+	tx.lastExec = res
 	return err
 }
 

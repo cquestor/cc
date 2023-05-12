@@ -127,13 +127,13 @@ func (session *Session) Begin() (*CTx, error) {
 
 // Table 设置表格名
 func (session *Session) Table(name string) *Session {
-	session.table = append(session.table, name)
+	session.table = append(session.table, "`"+name+"`")
 	return session
 }
 
 // Where 添加 Where 子句
 func (session *Session) Where(field, flag string, v any) *Session {
-	session.storeWhere = append(session.storeWhere, &StoreWhere{prepareStr: fmt.Sprintf("`%s` %s ?", field, flag), exec: v})
+	session.storeWhere = append(session.storeWhere, &StoreWhere{prepareStr: fmt.Sprintf("%s %s ?", field, flag), exec: v})
 	return session
 }
 
@@ -149,7 +149,7 @@ func (session *Session) Unequal(field string, v any) *Session {
 
 // Set 添加 Set 子句
 func (session *Session) Set(field string, v any) *Session {
-	session.storeSet = append(session.storeSet, &StoreSet{prepareStr: fmt.Sprintf("`%s`=?", field), exec: v})
+	session.storeSet = append(session.storeSet, &StoreSet{prepareStr: fmt.Sprintf("%s=?", field), exec: v})
 	return session
 }
 
@@ -298,6 +298,7 @@ func (session *Session) _select(v any, t reflect.Type) (*sql.Rows, error) {
 
 // _select_one 查询单条数据
 func (session *Session) _select_one(v any, rows *sql.Rows) (int, error) {
+	defer rows.Close()
 	if !rows.Next() {
 		return 0, nil
 	}
@@ -309,6 +310,7 @@ func (session *Session) _select_one(v any, rows *sql.Rows) (int, error) {
 
 // _select_fetch 查询多条数据
 func (session *Session) _select_fetch(t reflect.Type, rows *sql.Rows) (int, []reflect.Value, error) {
+	defer rows.Close()
 	effectCount := 0
 	values := make([]reflect.Value, 0)
 	if !rows.Next() {
