@@ -1,3 +1,4 @@
+// ORM framework
 package orm
 
 import (
@@ -149,7 +150,7 @@ func (session *Session) Unequal(field string, v any) *Session {
 
 // Set 添加 Set 子句
 func (session *Session) Set(field string, v any) *Session {
-	session.storeSet = append(session.storeSet, &StoreSet{prepareStr: fmt.Sprintf("%s=?", field), exec: v})
+	session.storeSet = append(session.storeSet, &StoreSet{prepareStr: fmt.Sprintf("%s = ?", field), exec: v})
 	return session
 }
 

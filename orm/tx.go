@@ -32,7 +32,7 @@ func (tx *CTx) Table(name string) *CTx {
 
 // Where 添加 Where 子句
 func (tx *CTx) Where(field, flag string, v any) *CTx {
-	tx.storeWhere = append(tx.storeWhere, &StoreWhere{prepareStr: fmt.Sprintf("%s%s?", field, flag), exec: v})
+	tx.storeWhere = append(tx.storeWhere, &StoreWhere{prepareStr: fmt.Sprintf("%s %s ?", field, flag), exec: v})
 	return tx
 }
 
@@ -48,7 +48,7 @@ func (tx *CTx) Unequal(field string, v any) *CTx {
 
 // Set 添加 Set 子句
 func (tx *CTx) Set(field string, v any) *CTx {
-	tx.storeSet = append(tx.storeSet, &StoreSet{prepareStr: fmt.Sprintf("%s=?", field), exec: v})
+	tx.storeSet = append(tx.storeSet, &StoreSet{prepareStr: fmt.Sprintf("%s = ?", field), exec: v})
 	return tx
 }
 
@@ -197,6 +197,7 @@ func (tx *CTx) _select(v any, t reflect.Type) (*sql.Rows, error) {
 
 // _select_one 查询单条数据
 func (tx *CTx) _select_one(v any, rows *sql.Rows) (int, error) {
+	defer rows.Close()
 	if !rows.Next() {
 		return 0, nil
 	}
@@ -208,6 +209,7 @@ func (tx *CTx) _select_one(v any, rows *sql.Rows) (int, error) {
 
 // _select_fetch 查询多条数据
 func (tx *CTx) _select_fetch(t reflect.Type, rows *sql.Rows) (int, []reflect.Value, error) {
+	defer rows.Close()
 	effectCount := 0
 	values := make([]reflect.Value, 0)
 	if !rows.Next() {
